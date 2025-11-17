@@ -1,0 +1,55 @@
+name: Setup Fortran
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: ${{ matrix.os }}-${{ matrix.toolchain.compiler }}${{ matrix.toolchain.tag }}
+    if: github.event.pull_request.draft == false
+    runs-on: ${{ matrix.os }}
+    env:
+      FPM_FFLAGS: ${{ matrix.toolchain.FPM_FFLAGS }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+        toolchain:
+          # Compile with OpenACC and OpenMP as the default
+          - compiler: gcc
+            version: 14
+            FPM_FFLAGS: "-Werror=unused -Werror=unused-parameter --coverage -pedantic-errors -std=f2008 -fopenmp -fopenacc"
+          # As far as we can remember we haven't hit any issues picked
+          # up by intel but not by the other compilers, while minutes
+          # are limited we will not run these
+          # - {compiler: intel, version: '2025.0'}
+          # - {compiler: intel-classic, version: '2021.10'}
+
+          # Separate nvidia compilations removed because using up all
+          # our CI minutes!  The code now supports OpenMP+OpenACC
+          # anyway, so it makes sense to just compile once
+          - {compiler: nvidia-hpc, version: '25.1', FPM_FFLAGS: "-mp -acc=multicore"}
+          # Cannot currently support lfortran due to it not supporting
+          # namelists (issue number 1999 lfortran)
+          # - {compiler: lfortran, version: '0.55.0'}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: fortran-lang/setup-fortran@main
+        id: setup-fortran
+        with:
+          compiler: ${{ matrix.toolchain.compiler }}
+          version: ${{ matrix.toolchain.version }}
