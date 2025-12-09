@@ -53,3 +53,5 @@ jobs:
         with:
           compiler: ${{ matrix.toolchain.compiler }}
           version: ${{ matrix.toolchain.version }}
+      - run: |
+          mpif90 --version
